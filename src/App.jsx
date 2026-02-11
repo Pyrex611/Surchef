@@ -1,728 +1,389 @@
-import React, { useState, useEffect } from 'react';
-import { Search, X, Clock, Users, ChefHat, Menu, Calendar, ShoppingCart, TrendingUp, Flame, Heart, ArrowRight, Info, Plus, LogOut } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Calendar,
+  ChefHat,
+  Home,
+  LogOut,
+  Plus,
+  Search,
+  ShoppingBasket,
+  Trash2,
+  TrendingUp
+} from 'lucide-react';
 
-// ==================== API CONFIG ====================
-const API_KEY = import.meta.env.VITE_SPOONACULAR_API_KEY || '537773655114493d97a84f32018e3d08';
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.spoonacular.com';
+const API_ROOT = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000/api';
+const FOOD_API_ROOT = import.meta.env.VITE_API_BASE_URL || 'https://api.spoonacular.com';
+const FOOD_API_KEY = import.meta.env.VITE_SPOONACULAR_API_KEY || '';
 
-const api = {
-  async searchRecipes(query) {
-    try {
-      const response = await fetch(
-        `${API_BASE}/recipes/complexSearch?query=${encodeURIComponent(query)}&number=12&addRecipeInformation=true&apiKey=${API_KEY}`
-      );
-      if (!response.ok) throw new Error('API Error');
-      const data = await response.json();
-      return data.results || [];
-    } catch (error) {
-      console.error('Search Error:', error);
-      return [];
+const VIEWS = [
+  { id: 'home', label: 'Discover', icon: Home },
+  { id: 'planner', label: 'Planner', icon: Calendar },
+  { id: 'pantry', label: 'Pantry', icon: ShoppingBasket },
+  { id: 'nutrition', label: 'Nutrition', icon: TrendingUp }
+];
+
+async function request(path, options = {}, token) {
+  const response = await fetch(`${API_ROOT}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
     }
-  },
+  });
 
-  async getRecipeDetails(id) {
-    try {
-      const response = await fetch(
-        `${API_BASE}/recipes/${id}/information?includeNutrition=true&apiKey=${API_KEY}`
-      );
-      if (!response.ok) throw new Error('API Error');
-      return await response.json();
-    } catch (error) {
-      console.error('Details Error:', error);
-      return null;
-    }
-  },
-
-  async getFeatured() {
-    try {
-      const response = await fetch(
-        `${API_BASE}/recipes/random?number=6&apiKey=${API_KEY}`
-      );
-      if (!response.ok) throw new Error('API Error');
-      const data = await response.json();
-      return data.recipes || [];
-    } catch (error) {
-      console.error('Featured Error:', error);
-      return [];
-    }
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(error.message || 'Request failed');
   }
-};
 
-const SUBSTITUTIONS = {
-  'butter': ['olive oil', 'coconut oil', 'ghee'],
-  'milk': ['almond milk', 'oat milk', 'coconut milk'],
-  'eggs': ['flax eggs', 'chia seeds', 'applesauce'],
-  'flour': ['almond flour', 'rice flour', 'coconut flour'],
-  'sugar': ['honey', 'maple syrup', 'stevia']
-};
+  if (response.status === 204) return null;
+  return response.json();
+}
 
-// ==================== SIDEBAR ====================
-const Sidebar = ({ isOpen, onClose, activeView, setActiveView, user, onLogout }) => {
-  if (!isOpen) return null;
-
-  const menuItems = [
-    { id: 'home', icon: Search, label: 'Discover Recipes' },
-    { id: 'pantry', icon: ShoppingCart, label: 'My Pantry' },
-    { id: 'planner', icon: Calendar, label: 'Meal Planner' },
-    { id: 'nutrition', icon: TrendingUp, label: 'Nutrition Tracker' }
-  ];
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-50 overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-                <ChefHat className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-800">SurChef</span>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {user && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {user.username[0].toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">{user.username}</p>
-                  <p className="text-xs text-gray-600 capitalize">{user.role}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {menuItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveView(item.id);
-                  onClose();
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all ${
-                  activeView === item.id
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-8 p-4 bg-green-50 rounded-xl border-2 border-green-200">
-            <p className="text-sm text-green-800 font-semibold mb-2">💡 Quick Tip</p>
-            <p className="text-xs text-green-700">Search for any meal to get detailed recipes with step-by-step instructions!</p>
-          </div>
-
-          <button
-            onClick={onLogout}
-            className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
-      </div>
-    </>
-  );
-};
-
-// ==================== HERO SECTION ====================
-const Hero = ({ onSearch, loading }) => {
-  const [query, setQuery] = useState('');
-
-  const handleClick = () => {
-    if (query.trim()) onSearch(query.trim());
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') handleClick();
-  };
-
-  return (
-    <div className="relative bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 text-white overflow-hidden">
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-white rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-      </div>
-
-      <div className="relative max-w-6xl mx-auto px-4 py-24 md:py-32">
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-white bg-opacity-20 px-4 py-2 rounded-full mb-6 backdrop-blur-sm">
-            <ChefHat className="w-5 h-5" />
-            <span className="text-sm font-semibold">Your Personal Culinary Assistant</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
-            Discover Amazing
-            <span className="block text-yellow-300 mt-2">Recipes</span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-green-50 mb-12 leading-relaxed">
-            Search for any meal and get detailed step-by-step cooking instructions
-          </p>
-
-          <div className="relative max-w-2xl mx-auto mb-6">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Search for pasta, pizza, curry, salad..."
-              className="w-full px-8 py-5 pr-32 text-lg text-gray-800 bg-white rounded-2xl shadow-2xl outline-none placeholder-gray-400 focus:ring-4 focus:ring-yellow-300 transition-all"
-            />
-            <button
-              onClick={handleClick}
-              disabled={loading || !query.trim()}
-              className="absolute right-2 top-2 bottom-2 px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg transition-all"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Search className="w-5 h-5" />
-              )}
-              <span className="hidden md:inline">Search</span>
-            </button>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-2">
-            {['Pasta', 'Pizza', 'Curry', 'Salad', 'Soup', 'Dessert'].map(tag => (
-              <button
-                key={tag}
-                onClick={() => onSearch(tag)}
-                disabled={loading}
-                className="px-4 py-2 bg-white bg-opacity-20 rounded-full text-sm font-semibold hover:bg-opacity-30 transition-all backdrop-blur-sm disabled:opacity-50"
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+const Brand = () => (
+  <div className="flex items-center gap-3">
+    <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 text-white flex items-center justify-center shadow-md">
+      <ChefHat className="h-5 w-5" />
     </div>
-  );
-};
-
-// ==================== RECIPE CARD ====================
-const RecipeCard = ({ recipe, onClick }) => (
-  <div
-    onClick={onClick}
-    className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105 group"
-  >
-    <div className="relative h-56 bg-gray-200 overflow-hidden">
-      {recipe.image ? (
-        <img 
-          src={recipe.image} 
-          alt={recipe.title} 
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 to-emerald-100">
-          <ChefHat className="w-20 h-20 text-green-400" />
-        </div>
-      )}
-      
-      <div className="absolute top-3 right-3 bg-white bg-opacity-95 px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
-        <Clock className="w-3 h-3 text-green-600" />
-        <span className="text-xs font-bold text-gray-800">{recipe.readyInMinutes || 30}m</span>
-      </div>
-      
-      {recipe.vegan && (
-        <div className="absolute top-3 left-3 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-          🌱 Vegan
-        </div>
-      )}
-    </div>
-    
-    <div className="p-5">
-      <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 min-h-[3.5rem]">
-        {recipe.title}
-      </h3>
-      
-      <div className="flex items-center gap-4 text-sm text-gray-600">
-        {recipe.servings && (
-          <div className="flex items-center gap-1">
-            <Users className="w-4 h-4" />
-            <span>{recipe.servings} servings</span>
-          </div>
-        )}
-        
-        {recipe.healthScore && (
-          <div className="flex items-center gap-1">
-            <Heart className="w-4 h-4 text-red-500" />
-            <span>{recipe.healthScore}% healthy</span>
-          </div>
-        )}
-      </div>
+    <div>
+      <h1 className="text-xl font-bold text-slate-900">SurChef</h1>
+      <p className="text-xs text-slate-500">Cook smarter, live healthier</p>
     </div>
   </div>
 );
 
-// ==================== RECIPE MODAL ====================
-const RecipeModal = ({ recipe, onClose }) => {
-  const [details, setDetails] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('instructions');
+function AuthScreen({ onAuthSuccess }) {
+  const [mode, setMode] = useState('login');
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const data = await api.getRecipeDetails(recipe.id);
-      setDetails(data);
+  const submit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const endpoint = mode === 'login' ? '/auth/login' : '/auth/signup';
+      const payload = mode === 'login'
+        ? { email: form.email, password: form.password }
+        : { name: form.name, email: form.email, password: form.password };
+
+      const data = await request(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+      localStorage.setItem('surchef-token', data.token);
+      onAuthSuccess(data.user, data.token);
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-    };
-    load();
-  }, [recipe.id]);
-
-  const tabs = [
-    { id: 'instructions', label: 'Instructions', icon: ChefHat },
-    { id: 'ingredients', label: 'Ingredients', icon: ShoppingCart },
-    { id: 'nutrition', label: 'Nutrition', icon: TrendingUp }
-  ];
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="relative h-64 bg-gray-200">
-          {recipe.image && (
-            <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
-          )}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 bg-white bg-opacity-90 p-2 rounded-full hover:bg-opacity-100 transition-all shadow-lg"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <div className="p-8">
-          <h2 className="text-3xl font-bold mb-4">{recipe.title}</h2>
-          
-          <div className="flex gap-4 mb-6 flex-wrap">
-            {recipe.readyInMinutes && (
-              <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-full">
-                <Clock className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-green-800">{recipe.readyInMinutes} minutes</span>
-              </div>
-            )}
-            {recipe.servings && (
-              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
-                <Users className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-800">{recipe.servings} servings</span>
-              </div>
-            )}
-            {recipe.healthScore && (
-              <div className="flex items-center gap-2 bg-red-50 px-4 py-2 rounded-full">
-                <Heart className="w-5 h-5 text-red-600" />
-                <span className="font-semibold text-red-800">{recipe.healthScore}% healthy</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2 mb-6 border-b border-gray-200">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all border-b-2 ${
-                  activeTab === tab.id
-                    ? 'border-green-600 text-green-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                <tab.icon className="w-5 h-5" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="overflow-y-auto max-h-96">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : details ? (
-              <>
-                {activeTab === 'instructions' && (
-                  <div className="space-y-4">
-                    {details.analyzedInstructions?.[0]?.steps?.map((step, i) => (
-                      <div key={i} className="flex gap-4">
-                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {step.number}
-                        </div>
-                        <p className="text-gray-700 pt-1">{step.step}</p>
-                      </div>
-                    )) || <p className="text-gray-600">No instructions available.</p>}
-                  </div>
-                )}
-
-                {activeTab === 'ingredients' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {details.extendedIngredients?.map((ing, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                        <div className="w-2 h-2 bg-green-600 rounded-full" />
-                        <span className="text-gray-800 font-medium">{ing.original}</span>
-                      </div>
-                    )) || <p className="text-gray-600">No ingredients available.</p>}
-                  </div>
-                )}
-
-                {activeTab === 'nutrition' && details.nutrition && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {details.nutrition.nutrients?.slice(0, 8).map((nutrient, i) => (
-                        <div key={i} className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
-                          <p className="text-sm text-gray-600 mb-1">{nutrient.name}</p>
-                          <p className="text-xl font-bold text-green-700">
-                            {Math.round(nutrient.amount)}{nutrient.unit}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-center text-gray-600 py-12">Failed to load details.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== FEATURED SECTION ====================
-const FeaturedSection = ({ recipes, onSelect, loading }) => (
-  <div className="max-w-7xl mx-auto px-4 py-16">
-    <div className="mb-12">
-      <h2 className="text-4xl font-bold text-gray-800 mb-3 flex items-center gap-3">
-        <Flame className="w-10 h-10 text-orange-500" />
-        Featured Recipes
-      </h2>
-      <p className="text-gray-600 text-lg">Discover our handpicked recipes for you</p>
-    </div>
-    
-    {loading ? (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-lg">
-            <div className="h-56 bg-gray-200 shimmer" />
-            <div className="p-5 space-y-3">
-              <div className="h-6 bg-gray-200 rounded shimmer" />
-              <div className="h-4 bg-gray-200 rounded w-3/4 shimmer" />
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : recipes.length > 0 ? (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {recipes.map(r => <RecipeCard key={r.id} recipe={r} onClick={() => onSelect(r)} />)}
-      </div>
-    ) : (
-      <div className="text-center py-20">
-        <ChefHat className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-        <p className="text-xl text-gray-600">No featured recipes available.</p>
-      </div>
-    )}
-  </div>
-);
-
-// ==================== SEARCH RESULTS ====================
-const SearchResults = ({ recipes, query, onSelect, loading }) => (
-  <div className="max-w-7xl mx-auto px-4 py-16">
-    <div className="mb-12">
-      <h2 className="text-4xl font-bold text-gray-800 mb-3">
-        Search Results for "{query}"
-      </h2>
-      <p className="text-gray-600 text-lg">Found {recipes.length} recipes</p>
-    </div>
-    
-    <div className="max-w-7xl mx-auto">
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-lg">
-              <div className="h-56 bg-gray-200 shimmer" />
-              <div className="p-5 space-y-3">
-                <div className="h-6 bg-gray-200 rounded shimmer" />
-                <div className="h-4 bg-gray-200 rounded w-3/4 shimmer" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : recipes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {recipes.map(r => <RecipeCard key={r.id} recipe={r} onClick={() => onSelect(r)} />)}
-        </div>
-      ) : (
-        <div className="text-center py-20">
-          <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="w-10 h-10 text-gray-400" />
-          </div>
-          <p className="text-xl text-gray-600 mb-2">No recipes found</p>
-          <p className="text-gray-500">Try different keywords or browse our featured recipes</p>
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-// ==================== OTHER VIEWS ====================
-const PantryView = () => {
-  const [items, setItems] = useState(['chicken', 'rice', 'tomato', 'onion', 'garlic']);
-  const [input, setInput] = useState('');
-
-  const addItem = () => {
-    if (input.trim() && !items.includes(input.trim().toLowerCase())) {
-      setItems([...items, input.trim().toLowerCase()]);
-      setInput('');
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
-          <ShoppingCart className="w-8 h-8 text-green-600" />
-          My Pantry
-        </h2>
-        <p className="text-gray-600 mb-6">Track the ingredients you have at home</p>
-        
-        <div className="flex gap-2 mb-6">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addItem()}
-            placeholder="Add ingredient..."
-            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl outline-none focus:border-green-500 transition-colors"
-          />
-          <button
-            onClick={addItem}
-            className="px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 font-semibold flex items-center gap-2 shadow-lg transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            Add
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-700 via-teal-700 to-cyan-700 p-4 flex items-center justify-center">
+      <div className="w-full max-w-md rounded-3xl bg-white/95 backdrop-blur shadow-2xl p-7 space-y-6">
+        <Brand />
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h2>
+          <p className="text-slate-600 text-sm">Save plans, track pantry and personalize your meals.</p>
         </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {items.map(item => (
-            <span key={item} className="bg-green-100 text-green-800 px-4 py-2 rounded-full flex items-center gap-2 font-semibold">
-              {item}
-              <button 
-                onClick={() => setItems(items.filter(i => i !== item))}
-                className="hover:bg-green-200 rounded-full p-1 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </span>
-          ))}
-        </div>
-        
-        {items.length === 0 && (
-          <p className="text-center text-gray-400 py-8">No ingredients added yet</p>
-        )}
-      </div>
-    </div>
-  );
-};
 
-const PlannerView = () => {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <Calendar className="w-8 h-8 text-blue-600" />
-          Weekly Meal Plan
-        </h2>
-        <p className="text-gray-600 mb-8">Plan your meals for the week ahead</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {days.map(day => (
-            <div key={day} className="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
-              <h3 className="font-bold text-lg mb-3 text-blue-600">{day}</h3>
-              <div className="space-y-2">
-                <div className="text-gray-400 text-sm italic">No meals planned</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NutritionView = () => {
-  const data = { goal: 2000, consumed: 1450 };
-  const pct = (data.consumed / data.goal) * 100;
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <TrendingUp className="w-8 h-8 text-purple-600" />
-          Nutrition Tracker
-        </h2>
-        <p className="text-gray-600 mb-8">Monitor your daily calorie intake</p>
-        
-        <div className="mb-8">
-          <div className="flex justify-between mb-4">
-            <div>
-              <p className="text-5xl font-bold text-green-700">{data.consumed}</p>
-              <p className="text-gray-600">calories consumed</p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-semibold text-gray-700">{data.goal - data.consumed}</p>
-              <p className="text-gray-600">remaining</p>
-            </div>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-green-500 to-emerald-500 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${pct}%` }}
+        <form onSubmit={submit} className="space-y-3">
+          {mode === 'signup' && (
+            <input
+              required
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Your name"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-400"
             />
-          </div>
-          <div className="flex justify-between mt-2 text-sm text-gray-600">
-            <span>0</span>
-            <span>{data.goal} cal goal</span>
-          </div>
-        </div>
-        
-        <div className="p-4 bg-amber-50 rounded-xl border-l-4 border-amber-500">
-          <p className="text-sm text-amber-800 font-semibold">⚠️ Demo Data</p>
-          <p className="text-xs text-amber-700 mt-1">Backend integration required for live tracking</p>
-        </div>
+          )}
+          <input
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+            placeholder="Email"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-400"
+          />
+          <input
+            type="password"
+            required
+            minLength={6}
+            value={form.password}
+            onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+            placeholder="Password (6+ chars)"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-400"
+          />
+
+          {error && <p className="text-sm font-medium text-rose-600">{error}</p>}
+
+          <button
+            disabled={loading}
+            className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3 font-semibold text-white hover:opacity-95 disabled:opacity-60"
+          >
+            {loading ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Sign up'}
+          </button>
+        </form>
+
+        <button
+          onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+          className="text-sm text-emerald-700 font-semibold"
+        >
+          {mode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Log in'}
+        </button>
       </div>
     </div>
   );
-};
+}
 
-// ==================== MAIN APP ====================
-export default function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+function AppShell({ user, token, onLogout }) {
   const [activeView, setActiveView] = useState('home');
-  const [featured, setFeatured] = useState([]);
+  const [query, setQuery] = useState('pasta');
   const [searchResults, setSearchResults] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [loadingFeatured, setLoadingFeatured] = useState(true);
+  const [searchError, setSearchError] = useState('');
   const [loadingSearch, setLoadingSearch] = useState(false);
-  const [user, setUser] = useState(null);
+  const [mealPlans, setMealPlans] = useState([]);
+  const [pantry, setPantry] = useState([]);
+  const [plannerForm, setPlannerForm] = useState({ day: 'Monday', mealType: 'Dinner', title: '', calories: 550 });
+  const [pantryForm, setPantryForm] = useState({ name: '', quantity: '1 pack' });
 
   useEffect(() => {
-    // Check for logged-in user
-    const currentUser = localStorage.getItem('currentUser');
-    if (currentUser) {
-      setUser(JSON.parse(currentUser));
-    } else {
-      // Redirect to login if not authenticated
-      window.location.href = 'login.html';
+    const loadPrivateData = async () => {
+      const [plans, pantryItems] = await Promise.all([
+        request('/meal-plans', {}, token),
+        request('/pantry-items', {}, token)
+      ]);
+      setMealPlans(plans);
+      setPantry(pantryItems);
+    };
+
+    loadPrivateData().catch(() => onLogout());
+  }, [token, onLogout]);
+
+  useEffect(() => {
+    if (!FOOD_API_KEY) {
+      setSearchError('Add VITE_SPOONACULAR_API_KEY in .env to enable live recipe search.');
+      return;
     }
 
-    const load = async () => {
-      const recipes = await api.getFeatured();
-      setFeatured(recipes);
-      setLoadingFeatured(false);
+    const run = async () => {
+      setSearchError('');
+      setLoadingSearch(true);
+      try {
+        const response = await fetch(
+          `${FOOD_API_ROOT}/recipes/complexSearch?query=${encodeURIComponent(query)}&number=8&addRecipeInformation=true&apiKey=${FOOD_API_KEY}`
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Recipe search failed');
+        setSearchResults(data.results || []);
+      } catch (error) {
+        setSearchError(error.message);
+      } finally {
+        setLoadingSearch(false);
+      }
     };
-    load();
-  }, []);
 
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    setLoadingSearch(true);
-    const results = await api.searchRecipes(query);
-    setSearchResults(results);
-    setLoadingSearch(false);
+    run();
+  }, [query]);
+
+  const calories = useMemo(() => mealPlans.reduce((acc, item) => acc + Number(item.calories || 0), 0), [mealPlans]);
+
+  const addMealPlan = async (event) => {
+    event.preventDefault();
+    const item = await request('/meal-plans', { method: 'POST', body: JSON.stringify(plannerForm) }, token);
+    setMealPlans((prev) => [item, ...prev]);
+    setPlannerForm((prev) => ({ ...prev, title: '' }));
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
-    window.location.href = 'login.html';
+  const addPantry = async (event) => {
+    event.preventDefault();
+    const item = await request('/pantry-items', { method: 'POST', body: JSON.stringify(pantryForm) }, token);
+    setPantry((prev) => [item, ...prev]);
+    setPantryForm({ name: '', quantity: '1 pack' });
+  };
+
+  const deleteMealPlan = async (id) => {
+    await request(`/meal-plans/${id}`, { method: 'DELETE' }, token);
+    setMealPlans((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const deletePantry = async (id) => {
+    await request(`/pantry-items/${id}`, { method: 'DELETE' }, token);
+    setPantry((prev) => prev.filter((item) => item.id !== id));
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 bg-white shadow-md z-30">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <button 
-            onClick={() => setSidebarOpen(true)} 
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          
+    <div className="min-h-screen bg-slate-50 pb-20 md:pb-0">
+      <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
+          <Brand />
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-              <ChefHat className="w-6 h-6 text-white" />
+            <div className="hidden md:block text-right">
+              <p className="text-sm font-semibold text-slate-800">{user.name}</p>
+              <p className="text-xs text-slate-500">{user.email}</p>
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              SurChef
-            </h1>
+            <button onClick={onLogout} className="rounded-xl border border-slate-200 p-2 hover:bg-slate-100" title="Log out">
+              <LogOut className="h-5 w-5 text-slate-700" />
+            </button>
           </div>
-
-          {user && (
-            <div className="flex items-center gap-2">
-              <div className="hidden md:block text-right">
-                <p className="text-sm font-semibold text-gray-800">{user.username}</p>
-                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
-              </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                {user.username[0].toUpperCase()}
-              </div>
-            </div>
-          )}
         </div>
       </header>
 
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        activeView={activeView}
-        setActiveView={setActiveView}
-        user={user}
-        onLogout={handleLogout}
-      />
+      <div className="mx-auto max-w-7xl px-4 py-6 md:grid md:grid-cols-[220px_1fr] md:gap-6">
+        <aside className="hidden md:block rounded-2xl bg-white p-3 border border-slate-200 h-fit sticky top-24">
+          {VIEWS.map((view) => (
+            <button
+              key={view.id}
+              onClick={() => setActiveView(view.id)}
+              className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-left font-medium mb-1 ${
+                activeView === view.id ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <view.icon className="h-4 w-4" />
+              {view.label}
+            </button>
+          ))}
+        </aside>
 
-      {activeView === 'home' && (
-        <>
-          <Hero onSearch={handleSearch} loading={loadingSearch} />
-          {searchQuery ? (
-            <SearchResults 
-              recipes={searchResults} 
-              query={searchQuery} 
-              onSelect={setSelectedRecipe} 
-              loading={loadingSearch} 
-            />
-          ) : (
-            <FeaturedSection 
-              recipes={featured} 
-              onSelect={setSelectedRecipe} 
-              loading={loadingFeatured} 
-            />
+        <main className="space-y-6">
+          {activeView === 'home' && (
+            <section className="space-y-4">
+              <div className="rounded-3xl bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-white">
+                <h2 className="text-2xl md:text-3xl font-bold">Hi {user.name.split(' ')[0]}, what are we cooking today?</h2>
+                <div className="mt-4 flex gap-2">
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="w-full rounded-xl px-4 py-3 text-slate-800"
+                    placeholder="Search healthy meals, desserts, vegan bowls..."
+                  />
+                  <button className="rounded-xl bg-white/20 px-4" title="Search">
+                    <Search className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {searchError && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{searchError}</p>}
+              {loadingSearch ? <p className="text-slate-500">Loading recipes…</p> : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {searchResults.map((recipe) => (
+                    <article key={recipe.id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition">
+                      <img src={recipe.image} alt={recipe.title} className="h-40 w-full object-cover" />
+                      <div className="p-4">
+                        <h3 className="font-semibold text-slate-900 line-clamp-2 min-h-12">{recipe.title}</h3>
+                        <p className="mt-2 text-xs text-slate-500">Ready in {recipe.readyInMinutes || 30} min · Serves {recipe.servings || 2}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
-        </>
-      )}
 
-      {activeView === 'pantry' && <PantryView />}
-      {activeView === 'planner' && <PlannerView />}
-      {activeView === 'nutrition' && <NutritionView />}
+          {activeView === 'planner' && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+              <h2 className="text-xl font-bold text-slate-900">Meal planner</h2>
+              <form onSubmit={addMealPlan} className="grid gap-2 md:grid-cols-5">
+                <input value={plannerForm.day} onChange={(e) => setPlannerForm((prev) => ({ ...prev, day: e.target.value }))} className="rounded-xl border px-3 py-2" placeholder="Day" />
+                <input value={plannerForm.mealType} onChange={(e) => setPlannerForm((prev) => ({ ...prev, mealType: e.target.value }))} className="rounded-xl border px-3 py-2" placeholder="Meal" />
+                <input required value={plannerForm.title} onChange={(e) => setPlannerForm((prev) => ({ ...prev, title: e.target.value }))} className="rounded-xl border px-3 py-2" placeholder="Dish" />
+                <input type="number" value={plannerForm.calories} onChange={(e) => setPlannerForm((prev) => ({ ...prev, calories: e.target.value }))} className="rounded-xl border px-3 py-2" placeholder="Calories" />
+                <button className="rounded-xl bg-emerald-600 px-4 py-2 text-white font-semibold flex items-center justify-center gap-2"><Plus className="h-4 w-4" />Add</button>
+              </form>
 
-      {selectedRecipe && (
-        <RecipeModal recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />
-      )}
+              <div className="space-y-2">
+                {mealPlans.length === 0 ? <p className="text-slate-500">No meals yet. Start planning your week.</p> : mealPlans.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-slate-200 p-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-800">{item.day} · {item.mealType}: {item.title}</p>
+                      <p className="text-xs text-slate-500">{item.calories} kcal</p>
+                    </div>
+                    <button onClick={() => deleteMealPlan(item.id)} className="text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {activeView === 'pantry' && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+              <h2 className="text-xl font-bold text-slate-900">Pantry tracker</h2>
+              <form onSubmit={addPantry} className="grid gap-2 md:grid-cols-3">
+                <input required value={pantryForm.name} onChange={(e) => setPantryForm((prev) => ({ ...prev, name: e.target.value }))} className="rounded-xl border px-3 py-2" placeholder="Item name" />
+                <input value={pantryForm.quantity} onChange={(e) => setPantryForm((prev) => ({ ...prev, quantity: e.target.value }))} className="rounded-xl border px-3 py-2" placeholder="Quantity" />
+                <button className="rounded-xl bg-emerald-600 px-4 py-2 text-white font-semibold flex items-center justify-center gap-2"><Plus className="h-4 w-4" />Add item</button>
+              </form>
+
+              <div className="space-y-2">
+                {pantry.length === 0 ? <p className="text-slate-500">Your pantry is empty.</p> : pantry.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-slate-200 p-3 flex justify-between items-center">
+                    <p className="text-slate-800 font-medium">{item.name} <span className="text-xs text-slate-500">({item.quantity})</span></p>
+                    <button onClick={() => deletePantry(item.id)} className="text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {activeView === 'nutrition' && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+              <h2 className="text-xl font-bold text-slate-900">Nutrition insights</h2>
+              <p className="text-slate-600">Daily target: 2200 kcal</p>
+              <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500" style={{ width: `${Math.min((calories / 2200) * 100, 100)}%` }} />
+              </div>
+              <p className="font-semibold text-slate-800">Planned weekly calories: {calories} kcal</p>
+              <p className="text-sm text-slate-500">Derived from your saved meal plans. Keep balancing protein, fiber and hydration for better outcomes.</p>
+            </section>
+          )}
+        </main>
+      </div>
+
+      <nav className="md:hidden fixed bottom-0 inset-x-0 border-t border-slate-200 bg-white grid grid-cols-4 z-30">
+        {VIEWS.map((view) => (
+          <button key={view.id} onClick={() => setActiveView(view.id)} className={`py-3 flex flex-col items-center text-xs ${activeView === view.id ? 'text-emerald-600' : 'text-slate-500'}`}>
+            <view.icon className="h-4 w-4" />
+            {view.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
+}
+
+export default function App() {
+  const [token, setToken] = useState(() => localStorage.getItem('surchef-token'));
+  const [user, setUser] = useState(null);
+  const [booting, setBooting] = useState(() => Boolean(token));
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    request('/me', {}, token)
+      .then((data) => setUser(data))
+      .catch(() => {
+        localStorage.removeItem('surchef-token');
+        setToken(null);
+      })
+      .finally(() => setBooting(false));
+  }, [token]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('surchef-token');
+    setToken(null);
+    setUser(null);
+  };
+
+  if (booting) {
+    return <div className="min-h-screen grid place-items-center text-slate-500">Loading SurChef…</div>;
+  }
+
+  if (!token || !user) {
+    return <AuthScreen onAuthSuccess={(nextUser, nextToken) => { setUser(nextUser); setToken(nextToken); }} />;
+  }
+
+  return <AppShell user={user} token={token} onLogout={handleLogout} />;
 }

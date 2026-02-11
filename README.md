@@ -1,16 +1,56 @@
-# React + Vite
+# SurChef
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SurChef is a recipe discovery and meal-planning web app with an integrated backend for user accounts and persisted meal/pantry data.
 
-Currently, two official plugins are available:
+## What is included
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Modern React + Vite frontend** with improved responsive UX.
+- **JWT authentication** (signup/login/logout).
+- **Persistent backend storage** (JSON database file) for:
+  - meal plans
+  - pantry items
+- **Mobile-first navigation** with a fixed bottom tab bar, while desktop uses a left menu.
+- **Recipe discovery** through Spoonacular API.
 
-## React Compiler
+## Run locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install dependencies:
 
-## Expanding the ESLint configuration
+```bash
+npm install --legacy-peer-deps
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+2. Start backend API:
+
+```bash
+npm run dev:api
+```
+
+3. In a second terminal start frontend:
+
+```bash
+npm run dev
+```
+
+Frontend runs on `http://localhost:3000`, backend on `http://localhost:4000`.
+
+## Environment variables
+
+Create a `.env` file in the project root:
+
+```bash
+VITE_SPOONACULAR_API_KEY=your_spoonacular_key
+VITE_API_BASE_URL=https://api.spoonacular.com
+VITE_BACKEND_URL=http://localhost:4000/api
+JWT_SECRET=change-this-in-production
+```
+
+> If `VITE_SPOONACULAR_API_KEY` is missing, SurChef still works for auth/planner/pantry but recipe discovery is disabled with an in-app message.
+
+## Build
+
+```bash
+npm run build
+```
+
+The build config uses a function-based `manualChunks` so it works with `rolldown-vite` and standard Vite builds.
