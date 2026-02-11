@@ -1,728 +1,482 @@
-import React, { useState, useEffect } from 'react';
-import { Search, X, Clock, Users, ChefHat, Menu, Calendar, ShoppingCart, TrendingUp, Flame, Heart, ArrowRight, Info, Plus, LogOut } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowRight,
+  Calendar,
+  ChefHat,
+  Clock,
+  Flame,
+  Heart,
+  Info,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  ShoppingBasket,
+  TrendingUp,
+  User,
+  X
+} from 'lucide-react';
+import { authService, backendMeta, dataService, recipeApi } from './lib/backend';
 
-// ==================== API CONFIG ====================
-const API_KEY = import.meta.env.VITE_SPOONACULAR_API_KEY || '537773655114493d97a84f32018e3d08';
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.spoonacular.com';
+const views = [
+  { id: 'home', label: 'Discover', icon: Search },
+  { id: 'pantry', label: 'Pantry', icon: ShoppingBasket },
+  { id: 'planner', label: 'Planner', icon: Calendar },
+  { id: 'nutrition', label: 'Nutrition', icon: TrendingUp }
+];
 
-const api = {
-  async searchRecipes(query) {
-    try {
-      const response = await fetch(
-        `${API_BASE}/recipes/complexSearch?query=${encodeURIComponent(query)}&number=12&addRecipeInformation=true&apiKey=${API_KEY}`
-      );
-      if (!response.ok) throw new Error('API Error');
-      const data = await response.json();
-      return data.results || [];
-    } catch (error) {
-      console.error('Search Error:', error);
-      return [];
-    }
-  },
+const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  async getRecipeDetails(id) {
-    try {
-      const response = await fetch(
-        `${API_BASE}/recipes/${id}/information?includeNutrition=true&apiKey=${API_KEY}`
-      );
-      if (!response.ok) throw new Error('API Error');
-      return await response.json();
-    } catch (error) {
-      console.error('Details Error:', error);
-      return null;
-    }
-  },
+const getDayKey = (value) => value.toLowerCase();
 
-  async getFeatured() {
-    try {
-      const response = await fetch(
-        `${API_BASE}/recipes/random?number=6&apiKey=${API_KEY}`
-      );
-      if (!response.ok) throw new Error('API Error');
-      const data = await response.json();
-      return data.recipes || [];
-    } catch (error) {
-      console.error('Featured Error:', error);
-      return [];
-    }
-  }
-};
-
-const SUBSTITUTIONS = {
-  'butter': ['olive oil', 'coconut oil', 'ghee'],
-  'milk': ['almond milk', 'oat milk', 'coconut milk'],
-  'eggs': ['flax eggs', 'chia seeds', 'applesauce'],
-  'flour': ['almond flour', 'rice flour', 'coconut flour'],
-  'sugar': ['honey', 'maple syrup', 'stevia']
-};
-
-// ==================== SIDEBAR ====================
-const Sidebar = ({ isOpen, onClose, activeView, setActiveView, user, onLogout }) => {
-  if (!isOpen) return null;
-
-  const menuItems = [
-    { id: 'home', icon: Search, label: 'Discover Recipes' },
-    { id: 'pantry', icon: ShoppingCart, label: 'My Pantry' },
-    { id: 'planner', icon: Calendar, label: 'Meal Planner' },
-    { id: 'nutrition', icon: TrendingUp, label: 'Nutrition Tracker' }
-  ];
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-50 overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-                <ChefHat className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-800">SurChef</span>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {user && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {user.username[0].toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">{user.username}</p>
-                  <p className="text-xs text-gray-600 capitalize">{user.role}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {menuItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveView(item.id);
-                  onClose();
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all ${
-                  activeView === item.id
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-8 p-4 bg-green-50 rounded-xl border-2 border-green-200">
-            <p className="text-sm text-green-800 font-semibold mb-2">💡 Quick Tip</p>
-            <p className="text-xs text-green-700">Search for any meal to get detailed recipes with step-by-step instructions!</p>
-          </div>
-
-          <button
-            onClick={onLogout}
-            className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
-      </div>
-    </>
-  );
-};
-
-// ==================== HERO SECTION ====================
-const Hero = ({ onSearch, loading }) => {
-  const [query, setQuery] = useState('');
-
-  const handleClick = () => {
-    if (query.trim()) onSearch(query.trim());
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') handleClick();
-  };
-
-  return (
-    <div className="relative bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 text-white overflow-hidden">
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-white rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-      </div>
-
-      <div className="relative max-w-6xl mx-auto px-4 py-24 md:py-32">
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-white bg-opacity-20 px-4 py-2 rounded-full mb-6 backdrop-blur-sm">
-            <ChefHat className="w-5 h-5" />
-            <span className="text-sm font-semibold">Your Personal Culinary Assistant</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
-            Discover Amazing
-            <span className="block text-yellow-300 mt-2">Recipes</span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-green-50 mb-12 leading-relaxed">
-            Search for any meal and get detailed step-by-step cooking instructions
-          </p>
-
-          <div className="relative max-w-2xl mx-auto mb-6">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Search for pasta, pizza, curry, salad..."
-              className="w-full px-8 py-5 pr-32 text-lg text-gray-800 bg-white rounded-2xl shadow-2xl outline-none placeholder-gray-400 focus:ring-4 focus:ring-yellow-300 transition-all"
-            />
-            <button
-              onClick={handleClick}
-              disabled={loading || !query.trim()}
-              className="absolute right-2 top-2 bottom-2 px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg transition-all"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Search className="w-5 h-5" />
-              )}
-              <span className="hidden md:inline">Search</span>
-            </button>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-2">
-            {['Pasta', 'Pizza', 'Curry', 'Salad', 'Soup', 'Dessert'].map(tag => (
-              <button
-                key={tag}
-                onClick={() => onSearch(tag)}
-                disabled={loading}
-                className="px-4 py-2 bg-white bg-opacity-20 rounded-full text-sm font-semibold hover:bg-opacity-30 transition-all backdrop-blur-sm disabled:opacity-50"
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+const Logo = ({ compact = false }) => (
+  <div className="flex items-center gap-3">
+    <div className="relative h-10 w-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center">
+      <ChefHat className="h-5 w-5" />
     </div>
-  );
-};
-
-// ==================== RECIPE CARD ====================
-const RecipeCard = ({ recipe, onClick }) => (
-  <div
-    onClick={onClick}
-    className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105 group"
-  >
-    <div className="relative h-56 bg-gray-200 overflow-hidden">
-      {recipe.image ? (
-        <img 
-          src={recipe.image} 
-          alt={recipe.title} 
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 to-emerald-100">
-          <ChefHat className="w-20 h-20 text-green-400" />
-        </div>
-      )}
-      
-      <div className="absolute top-3 right-3 bg-white bg-opacity-95 px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
-        <Clock className="w-3 h-3 text-green-600" />
-        <span className="text-xs font-bold text-gray-800">{recipe.readyInMinutes || 30}m</span>
-      </div>
-      
-      {recipe.vegan && (
-        <div className="absolute top-3 left-3 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-          🌱 Vegan
-        </div>
-      )}
-    </div>
-    
-    <div className="p-5">
-      <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 min-h-[3.5rem]">
-        {recipe.title}
-      </h3>
-      
-      <div className="flex items-center gap-4 text-sm text-gray-600">
-        {recipe.servings && (
-          <div className="flex items-center gap-1">
-            <Users className="w-4 h-4" />
-            <span>{recipe.servings} servings</span>
-          </div>
-        )}
-        
-        {recipe.healthScore && (
-          <div className="flex items-center gap-1">
-            <Heart className="w-4 h-4 text-red-500" />
-            <span>{recipe.healthScore}% healthy</span>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-// ==================== RECIPE MODAL ====================
-const RecipeModal = ({ recipe, onClose }) => {
-  const [details, setDetails] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('instructions');
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const data = await api.getRecipeDetails(recipe.id);
-      setDetails(data);
-      setLoading(false);
-    };
-    load();
-  }, [recipe.id]);
-
-  const tabs = [
-    { id: 'instructions', label: 'Instructions', icon: ChefHat },
-    { id: 'ingredients', label: 'Ingredients', icon: ShoppingCart },
-    { id: 'nutrition', label: 'Nutrition', icon: TrendingUp }
-  ];
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="relative h-64 bg-gray-200">
-          {recipe.image && (
-            <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
-          )}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 bg-white bg-opacity-90 p-2 rounded-full hover:bg-opacity-100 transition-all shadow-lg"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <div className="p-8">
-          <h2 className="text-3xl font-bold mb-4">{recipe.title}</h2>
-          
-          <div className="flex gap-4 mb-6 flex-wrap">
-            {recipe.readyInMinutes && (
-              <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-full">
-                <Clock className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-green-800">{recipe.readyInMinutes} minutes</span>
-              </div>
-            )}
-            {recipe.servings && (
-              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
-                <Users className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-800">{recipe.servings} servings</span>
-              </div>
-            )}
-            {recipe.healthScore && (
-              <div className="flex items-center gap-2 bg-red-50 px-4 py-2 rounded-full">
-                <Heart className="w-5 h-5 text-red-600" />
-                <span className="font-semibold text-red-800">{recipe.healthScore}% healthy</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2 mb-6 border-b border-gray-200">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all border-b-2 ${
-                  activeTab === tab.id
-                    ? 'border-green-600 text-green-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                <tab.icon className="w-5 h-5" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="overflow-y-auto max-h-96">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : details ? (
-              <>
-                {activeTab === 'instructions' && (
-                  <div className="space-y-4">
-                    {details.analyzedInstructions?.[0]?.steps?.map((step, i) => (
-                      <div key={i} className="flex gap-4">
-                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {step.number}
-                        </div>
-                        <p className="text-gray-700 pt-1">{step.step}</p>
-                      </div>
-                    )) || <p className="text-gray-600">No instructions available.</p>}
-                  </div>
-                )}
-
-                {activeTab === 'ingredients' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {details.extendedIngredients?.map((ing, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                        <div className="w-2 h-2 bg-green-600 rounded-full" />
-                        <span className="text-gray-800 font-medium">{ing.original}</span>
-                      </div>
-                    )) || <p className="text-gray-600">No ingredients available.</p>}
-                  </div>
-                )}
-
-                {activeTab === 'nutrition' && details.nutrition && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {details.nutrition.nutrients?.slice(0, 8).map((nutrient, i) => (
-                        <div key={i} className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
-                          <p className="text-sm text-gray-600 mb-1">{nutrient.name}</p>
-                          <p className="text-xl font-bold text-green-700">
-                            {Math.round(nutrient.amount)}{nutrient.unit}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-center text-gray-600 py-12">Failed to load details.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== FEATURED SECTION ====================
-const FeaturedSection = ({ recipes, onSelect, loading }) => (
-  <div className="max-w-7xl mx-auto px-4 py-16">
-    <div className="mb-12">
-      <h2 className="text-4xl font-bold text-gray-800 mb-3 flex items-center gap-3">
-        <Flame className="w-10 h-10 text-orange-500" />
-        Featured Recipes
-      </h2>
-      <p className="text-gray-600 text-lg">Discover our handpicked recipes for you</p>
-    </div>
-    
-    {loading ? (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-lg">
-            <div className="h-56 bg-gray-200 shimmer" />
-            <div className="p-5 space-y-3">
-              <div className="h-6 bg-gray-200 rounded shimmer" />
-              <div className="h-4 bg-gray-200 rounded w-3/4 shimmer" />
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : recipes.length > 0 ? (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {recipes.map(r => <RecipeCard key={r.id} recipe={r} onClick={() => onSelect(r)} />)}
-      </div>
-    ) : (
-      <div className="text-center py-20">
-        <ChefHat className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-        <p className="text-xl text-gray-600">No featured recipes available.</p>
+    {!compact && (
+      <div>
+        <p className="text-lg font-extrabold tracking-tight text-gray-900">SurChef</p>
+        <p className="text-xs text-gray-500 -mt-0.5">Smart meal command center</p>
       </div>
     )}
   </div>
 );
 
-// ==================== SEARCH RESULTS ====================
-const SearchResults = ({ recipes, query, onSelect, loading }) => (
-  <div className="max-w-7xl mx-auto px-4 py-16">
-    <div className="mb-12">
-      <h2 className="text-4xl font-bold text-gray-800 mb-3">
-        Search Results for "{query}"
-      </h2>
-      <p className="text-gray-600 text-lg">Found {recipes.length} recipes</p>
+const AuthPanel = ({ onAuth }) => {
+  const [mode, setMode] = useState('signin');
+  const [form, setForm] = useState({ username: '', email: '', password: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const isSignUp = mode === 'signup';
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+
+    try {
+      const user = isSignUp ? await authService.signUp(form) : await authService.signIn(form);
+      onAuth(user);
+    } catch (err) {
+      setError(err?.message || 'Unable to authenticate. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-100 via-white to-teal-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-3xl bg-white/90 backdrop-blur-xl border border-white shadow-2xl p-8">
+        <div className="mb-8">
+          <Logo />
+        </div>
+
+        <h1 className="text-2xl font-bold text-gray-900">{isSignUp ? 'Create your account' : 'Welcome back'}</h1>
+        <p className="text-sm text-gray-500 mt-1">Store meal plans, pantry items, and nutrition progress across sessions.</p>
+
+        <form onSubmit={submit} className="space-y-4 mt-6">
+          {isSignUp && (
+            <label className="block">
+              <span className="text-sm font-semibold text-gray-700">Username</span>
+              <input
+                className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                value={form.username}
+                required
+                onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
+                placeholder="Chef name"
+              />
+            </label>
+          )}
+
+          <label className="block">
+            <span className="text-sm font-semibold text-gray-700">Email</span>
+            <input
+              type="email"
+              className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              value={form.email}
+              required
+              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+              placeholder="you@example.com"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-gray-700">Password</span>
+            <input
+              type="password"
+              className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              value={form.password}
+              required
+              minLength={6}
+              onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+              placeholder="••••••••"
+            />
+          </label>
+
+          {error && <p className="rounded-xl bg-red-50 text-red-700 border border-red-200 px-3 py-2 text-sm">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-2.5 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+          >
+            {busy ? 'Please wait…' : isSignUp ? 'Create account' : 'Sign in'}
+          </button>
+        </form>
+
+        <button
+          onClick={() => {
+            setMode((m) => (m === 'signup' ? 'signin' : 'signup'));
+            setError('');
+          }}
+          className="mt-4 text-sm text-emerald-700 font-semibold"
+        >
+          {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Create one'}
+        </button>
+
+        <p className="text-xs text-gray-500 mt-6">Data mode: {backendMeta.providerLabel}</p>
+      </div>
     </div>
-    
-    <div className="max-w-7xl mx-auto">
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-lg">
-              <div className="h-56 bg-gray-200 shimmer" />
-              <div className="p-5 space-y-3">
-                <div className="h-6 bg-gray-200 rounded shimmer" />
-                <div className="h-4 bg-gray-200 rounded w-3/4 shimmer" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : recipes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {recipes.map(r => <RecipeCard key={r.id} recipe={r} onClick={() => onSelect(r)} />)}
-        </div>
+  );
+};
+
+const RecipeCard = ({ recipe, onClick }) => (
+  <button
+    onClick={onClick}
+    className="text-left bg-white rounded-2xl overflow-hidden border border-emerald-100 shadow-sm hover:shadow-xl transition-all hover:-translate-y-0.5"
+  >
+    <div className="h-48 bg-gray-100 overflow-hidden">
+      {recipe.image ? (
+        <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
       ) : (
-        <div className="text-center py-20">
-          <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="w-10 h-10 text-gray-400" />
-          </div>
-          <p className="text-xl text-gray-600 mb-2">No recipes found</p>
-          <p className="text-gray-500">Try different keywords or browse our featured recipes</p>
-        </div>
+        <div className="w-full h-full grid place-items-center"><ChefHat className="w-10 h-10 text-emerald-400" /></div>
       )}
     </div>
-  </div>
+    <div className="p-4">
+      <h3 className="font-bold text-gray-800 line-clamp-2">{recipe.title}</h3>
+      <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
+        <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {recipe.readyInMinutes || 30} min</span>
+        <span className="inline-flex items-center gap-1"><Flame className="w-3 h-3" /> {recipe.healthScore || 70}</span>
+      </div>
+    </div>
+  </button>
 );
 
-// ==================== OTHER VIEWS ====================
-const PantryView = () => {
-  const [items, setItems] = useState(['chicken', 'rice', 'tomato', 'onion', 'garlic']);
-  const [input, setInput] = useState('');
-
-  const addItem = () => {
-    if (input.trim() && !items.includes(input.trim().toLowerCase())) {
-      setItems([...items, input.trim().toLowerCase()]);
-      setInput('');
-    }
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
-          <ShoppingCart className="w-8 h-8 text-green-600" />
-          My Pantry
-        </h2>
-        <p className="text-gray-600 mb-6">Track the ingredients you have at home</p>
-        
-        <div className="flex gap-2 mb-6">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addItem()}
-            placeholder="Add ingredient..."
-            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl outline-none focus:border-green-500 transition-colors"
-          />
-          <button
-            onClick={addItem}
-            className="px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 font-semibold flex items-center gap-2 shadow-lg transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            Add
-          </button>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {items.map(item => (
-            <span key={item} className="bg-green-100 text-green-800 px-4 py-2 rounded-full flex items-center gap-2 font-semibold">
-              {item}
-              <button 
-                onClick={() => setItems(items.filter(i => i !== item))}
-                className="hover:bg-green-200 rounded-full p-1 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </span>
-          ))}
-        </div>
-        
-        {items.length === 0 && (
-          <p className="text-center text-gray-400 py-8">No ingredients added yet</p>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const PlannerView = () => {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <Calendar className="w-8 h-8 text-blue-600" />
-          Weekly Meal Plan
-        </h2>
-        <p className="text-gray-600 mb-8">Plan your meals for the week ahead</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {days.map(day => (
-            <div key={day} className="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
-              <h3 className="font-bold text-lg mb-3 text-blue-600">{day}</h3>
-              <div className="space-y-2">
-                <div className="text-gray-400 text-sm italic">No meals planned</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NutritionView = () => {
-  const data = { goal: 2000, consumed: 1450 };
-  const pct = (data.consumed / data.goal) * 100;
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <TrendingUp className="w-8 h-8 text-purple-600" />
-          Nutrition Tracker
-        </h2>
-        <p className="text-gray-600 mb-8">Monitor your daily calorie intake</p>
-        
-        <div className="mb-8">
-          <div className="flex justify-between mb-4">
-            <div>
-              <p className="text-5xl font-bold text-green-700">{data.consumed}</p>
-              <p className="text-gray-600">calories consumed</p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-semibold text-gray-700">{data.goal - data.consumed}</p>
-              <p className="text-gray-600">remaining</p>
-            </div>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-green-500 to-emerald-500 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <div className="flex justify-between mt-2 text-sm text-gray-600">
-            <span>0</span>
-            <span>{data.goal} cal goal</span>
-          </div>
-        </div>
-        
-        <div className="p-4 bg-amber-50 rounded-xl border-l-4 border-amber-500">
-          <p className="text-sm text-amber-800 font-semibold">⚠️ Demo Data</p>
-          <p className="text-xs text-amber-700 mt-1">Backend integration required for live tracking</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== MAIN APP ====================
-export default function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeView, setActiveView] = useState('home');
-  const [featured, setFeatured] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [loadingFeatured, setLoadingFeatured] = useState(true);
-  const [loadingSearch, setLoadingSearch] = useState(false);
-  const [user, setUser] = useState(null);
+const RecipeModal = ({ recipe, onClose }) => {
+  const [details, setDetails] = useState(recipe);
 
   useEffect(() => {
-    // Check for logged-in user
-    const currentUser = localStorage.getItem('currentUser');
-    if (currentUser) {
-      setUser(JSON.parse(currentUser));
-    } else {
-      // Redirect to login if not authenticated
-      window.location.href = 'login.html';
-    }
-
+    let mounted = true;
     const load = async () => {
-      const recipes = await api.getFeatured();
-      setFeatured(recipes);
-      setLoadingFeatured(false);
+      const next = await recipeApi.getRecipeDetails(recipe.id);
+      if (mounted && next) setDetails(next);
     };
     load();
-  }, []);
-
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    setLoadingSearch(true);
-    const results = await api.searchRecipes(query);
-    setSearchResults(results);
-    setLoadingSearch(false);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
-    window.location.href = 'login.html';
-  };
+    return () => {
+      mounted = false;
+    };
+  }, [recipe.id]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 bg-white shadow-md z-30">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <button 
-            onClick={() => setSidebarOpen(true)} 
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-              <ChefHat className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              SurChef
-            </h1>
-          </div>
+    <div className="fixed inset-0 bg-black/60 z-50 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="max-w-3xl mx-auto mt-10 bg-white rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="relative h-64 bg-gray-100">
+          {details.image && <img src={details.image} alt={details.title} className="w-full h-full object-cover" />}
+          <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-white/90"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-gray-900">{details.title}</h2>
+          <p className="text-gray-600 mt-2" dangerouslySetInnerHTML={{ __html: details.summary || '' }} />
 
-          {user && (
-            <div className="flex items-center gap-2">
-              <div className="hidden md:block text-right">
-                <p className="text-sm font-semibold text-gray-800">{user.username}</p>
-                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
-              </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                {user.username[0].toUpperCase()}
-              </div>
+          {details.analyzedInstructions?.[0]?.steps?.length > 0 && (
+            <div className="mt-5">
+              <p className="font-semibold text-gray-900 mb-2">Steps</p>
+              <ol className="space-y-2">
+                {details.analyzedInstructions[0].steps.slice(0, 8).map((step) => (
+                  <li key={step.number} className="text-sm text-gray-700 flex gap-2">
+                    <span className="font-bold text-emerald-600">{step.number}.</span>
+                    <span>{step.step}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DesktopSidebar = ({ open, setOpen, activeView, setActiveView, onLogout, user }) => (
+  <>
+    {open && <div className="hidden md:block fixed inset-0 bg-black/50 z-40" onClick={() => setOpen(false)} />}
+    <aside className={`hidden md:flex fixed top-0 left-0 h-full w-72 bg-white border-r border-gray-100 z-50 flex-col transition-transform ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="p-5 border-b border-gray-100">
+        <Logo />
+      </div>
+      <div className="p-5 space-y-2 flex-1">
+        {views.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => {
+              setActiveView(item.id);
+              setOpen(false);
+            }}
+            className={`w-full rounded-xl px-4 py-3 font-semibold flex items-center gap-3 ${activeView === item.id ? 'bg-emerald-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            <item.icon className="w-5 h-5" />
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <div className="p-5 border-t border-gray-100">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-9 w-9 rounded-full bg-emerald-500 text-white grid place-items-center"><User className="w-4 h-4" /></div>
+          <div className="text-sm">
+            <p className="font-semibold text-gray-900">{user.username}</p>
+            <p className="text-gray-500">{user.email}</p>
+          </div>
+        </div>
+        <button onClick={onLogout} className="w-full rounded-xl border border-red-200 text-red-600 font-semibold py-2.5 flex items-center justify-center gap-2 hover:bg-red-50">
+          <LogOut className="w-4 h-4" /> Sign out
+        </button>
+      </div>
+    </aside>
+  </>
+);
+
+const MobileFooterNav = ({ activeView, setActiveView }) => (
+  <footer className="fixed bottom-0 left-0 right-0 md:hidden border-t border-gray-200 bg-white/95 backdrop-blur z-40">
+    <div className="grid grid-cols-4">
+      {views.map((item) => (
+        <button key={item.id} onClick={() => setActiveView(item.id)} className={`py-2.5 text-xs font-semibold flex flex-col items-center gap-1 ${activeView === item.id ? 'text-emerald-600' : 'text-gray-500'}`}>
+          <item.icon className="w-4 h-4" />
+          {item.label}
+        </button>
+      ))}
+    </div>
+  </footer>
+);
+
+const PantryView = ({ pantry, addPantry }) => {
+  const [item, setItem] = useState('');
+  return (
+    <section className="space-y-4">
+      <h2 className="text-2xl font-bold text-gray-900">Pantry inventory</h2>
+      <div className="bg-white border border-gray-100 rounded-2xl p-4">
+        <div className="flex gap-2">
+          <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Add item (e.g., tomatoes)" className="flex-1 rounded-xl border border-gray-200 px-3 py-2" />
+          <button onClick={() => { if (item.trim()) { addPantry(item.trim()); setItem(''); }}} className="rounded-xl bg-emerald-500 text-white px-4 inline-flex items-center gap-1"><Plus className="w-4 h-4" /> Add</button>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {pantry.length === 0 && <p className="text-sm text-gray-500">No pantry items yet.</p>}
+          {pantry.map((p) => <span key={p} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm">{p}</span>)}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const PlannerView = ({ mealPlan, saveMeal }) => (
+  <section className="space-y-4">
+    <h2 className="text-2xl font-bold text-gray-900">Weekly planner</h2>
+    <div className="grid md:grid-cols-2 gap-3">
+      {weekDays.map((day) => (
+        <div key={day} className="rounded-2xl bg-white border border-gray-100 p-4">
+          <p className="font-semibold text-gray-900">{day}</p>
+          <input
+            className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2"
+            placeholder="Plan a meal"
+            value={mealPlan[getDayKey(day)] || ''}
+            onChange={(e) => saveMeal(getDayKey(day), e.target.value)}
+          />
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
+const NutritionView = ({ nutrition, setNutrition }) => {
+  const pct = Math.min(100, Math.round((nutrition.consumed / Math.max(1, nutrition.goal)) * 100));
+  return (
+    <section className="space-y-4">
+      <h2 className="text-2xl font-bold text-gray-900">Nutrition tracker</h2>
+      <div className="rounded-2xl bg-white border border-gray-100 p-5">
+        <div className="grid sm:grid-cols-3 gap-3">
+          <label className="text-sm font-semibold text-gray-700">Daily goal
+            <input type="number" value={nutrition.goal} onChange={(e) => setNutrition((p) => ({ ...p, goal: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          </label>
+          <label className="text-sm font-semibold text-gray-700">Consumed
+            <input type="number" value={nutrition.consumed} onChange={(e) => setNutrition((p) => ({ ...p, consumed: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          </label>
+          <div className="rounded-xl bg-emerald-50 p-3">
+            <p className="text-sm text-emerald-700">Progress</p>
+            <p className="text-2xl font-bold text-emerald-800">{pct}%</p>
+          </div>
+        </div>
+        <div className="mt-4 h-3 rounded-full bg-gray-100 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default function App() {
+  const [activeView, setActiveView] = useState('home');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+
+  const [featured, setFeatured] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [heroInput, setHeroInput] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+
+  const [pantry, setPantry] = useState([]);
+  const [mealPlan, setMealPlan] = useState({});
+  const [nutrition, setNutrition] = useState({ goal: 2200, consumed: 0 });
+
+  useEffect(() => {
+    const boot = async () => {
+      const session = await authService.getSession();
+      setUser(session);
+      if (session) {
+        const dashboard = await dataService.getDashboard(session.id);
+        setPantry(dashboard.pantry || []);
+        setMealPlan(dashboard.mealPlan || {});
+        setNutrition(dashboard.nutrition || { goal: 2200, consumed: 0 });
+      }
+
+      const recipes = await recipeApi.getFeatured();
+      setFeatured(recipes);
+      setLoading(false);
+    };
+
+    boot();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      dataService.saveDashboard(user.id, { pantry, mealPlan, nutrition }).catch((err) => console.error('Save error', err));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [user, pantry, mealPlan, nutrition]);
+
+  const onSearch = async (query) => {
+    if (!query?.trim()) return;
+    setSearchQuery(query);
+    const results = await recipeApi.searchRecipes(query);
+    setSearchResults(results);
+  };
+
+  const addPantry = (item) => {
+    if (pantry.some((value) => value.toLowerCase() === item.toLowerCase())) return;
+    setPantry((prev) => [...prev, item]);
+  };
+
+  const saveMeal = (day, value) => {
+    setMealPlan((prev) => ({ ...prev, [day]: value }));
+  };
+
+  const heroStat = useMemo(() => ({
+    pantryItems: pantry.length,
+    plannedMeals: Object.values(mealPlan).filter(Boolean).length
+  }), [pantry, mealPlan]);
+
+  const logout = async () => {
+    await authService.signOut();
+    setUser(null);
+    setPantry([]);
+    setMealPlan({});
+    setNutrition({ goal: 2200, consumed: 0 });
+  };
+
+  if (loading) {
+    return <div className="min-h-screen grid place-items-center text-gray-600">Loading SurChef…</div>;
+  }
+
+  if (!user) {
+    return <AuthPanel onAuth={setUser} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 md:pb-8">
+      <DesktopSidebar open={sidebarOpen} setOpen={setSidebarOpen} activeView={activeView} setActiveView={setActiveView} onLogout={logout} user={user} />
+
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between md:pl-6">
+          <button onClick={() => setSidebarOpen(true)} className="hidden md:inline-flex p-2 rounded-xl hover:bg-gray-100"><Menu className="w-5 h-5" /></button>
+          <Logo compact />
+          <button onClick={logout} className="text-sm text-gray-500 hover:text-red-600">Sign out</button>
         </div>
       </header>
 
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        activeView={activeView}
-        setActiveView={setActiveView}
-        user={user}
-        onLogout={handleLogout}
-      />
+      <main className="max-w-7xl mx-auto p-4 md:p-6 md:pl-20 lg:pl-24 space-y-6">
+        {activeView === 'home' && (
+          <>
+            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 p-6 md:p-10 text-white">
+              <div className="absolute -top-12 -right-12 h-44 w-44 rounded-full bg-white/20 blur-2xl" />
+              <p className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold mb-4"><Heart className="w-3 h-3" /> Crafted for better cooking flow</p>
+              <h1 className="text-3xl md:text-5xl font-extrabold">Cook smarter. Plan easier.</h1>
+              <p className="mt-3 text-emerald-50">Search recipes, manage pantry inventory, and track weekly goals in one polished dashboard.</p>
 
-      {activeView === 'home' && (
-        <>
-          <Hero onSearch={handleSearch} loading={loadingSearch} />
-          {searchQuery ? (
-            <SearchResults 
-              recipes={searchResults} 
-              query={searchQuery} 
-              onSelect={setSelectedRecipe} 
-              loading={loadingSearch} 
-            />
-          ) : (
-            <FeaturedSection 
-              recipes={featured} 
-              onSelect={setSelectedRecipe} 
-              loading={loadingFeatured} 
-            />
-          )}
-        </>
-      )}
+              <div className="mt-5 flex flex-col sm:flex-row gap-2">
+                <input
+                  className="flex-1 rounded-xl border border-white/30 bg-white/95 text-gray-900 px-4 py-3"
+                  placeholder="Search recipes: ramen, burrito bowl, paneer curry..."
+                  value={heroInput}
+                  onChange={(e) => setHeroInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') onSearch(heroInput); }}
+                />
+                <button onClick={() => onSearch(heroInput)} className="rounded-xl bg-gray-900/85 px-5 py-3 font-semibold inline-flex items-center justify-center gap-2">
+                  <Search className="w-4 h-4" /> Search
+                </button>
+              </div>
 
-      {activeView === 'pantry' && <PantryView />}
-      {activeView === 'planner' && <PlannerView />}
-      {activeView === 'nutrition' && <NutritionView />}
+              <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="rounded-xl bg-white/10 px-3 py-2">Pantry items: <strong>{heroStat.pantryItems}</strong></div>
+                <div className="rounded-xl bg-white/10 px-3 py-2">Meals planned: <strong>{heroStat.plannedMeals}</strong></div>
+                <div className="rounded-xl bg-white/10 px-3 py-2">Nutrition goal: <strong>{nutrition.goal}</strong></div>
+                <div className="rounded-xl bg-white/10 px-3 py-2">Source: <strong>{backendMeta.hasSupabase ? 'Cloud' : 'Local'}</strong></div>
+              </div>
+            </section>
 
-      {selectedRecipe && (
-        <RecipeModal recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />
-      )}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-bold text-gray-900">{searchQuery ? `Search results: ${searchQuery}` : 'Featured recipes'}</h2>
+                <span className="text-sm text-gray-500">Tap a recipe for details</span>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {(searchQuery ? searchResults : featured).map((recipe) => (
+                  <RecipeCard key={recipe.id} recipe={recipe} onClick={() => setSelectedRecipe(recipe)} />
+                ))}
+              </div>
+              {(searchQuery ? searchResults : featured).length === 0 && (
+                <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">No recipes yet. Add `VITE_SPOONACULAR_API_KEY` for live data.</div>
+              )}
+            </section>
+          </>
+        )}
+
+        {activeView === 'pantry' && <PantryView pantry={pantry} addPantry={addPantry} />}
+        {activeView === 'planner' && <PlannerView mealPlan={mealPlan} saveMeal={saveMeal} />}
+        {activeView === 'nutrition' && <NutritionView nutrition={nutrition} setNutrition={setNutrition} />}
+      </main>
+
+      <MobileFooterNav activeView={activeView} setActiveView={setActiveView} />
+
+      {selectedRecipe && <RecipeModal recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />}
+
+      <div className="fixed bottom-20 right-4 md:bottom-6 bg-white border border-gray-200 rounded-xl shadow px-3 py-2 text-xs text-gray-600 flex items-center gap-2">
+        <Info className="w-3 h-3 text-emerald-600" />
+        Autosave enabled
+        <ArrowRight className="w-3 h-3" />
+      </div>
     </div>
   );
 }
