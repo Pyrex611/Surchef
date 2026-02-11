@@ -260,21 +260,57 @@ const MobileFooterNav = ({ activeView, setActiveView }) => (
   </footer>
 );
 
-const PantryView = ({ pantry, addPantry }) => {
+const PantryView = ({ pantry, addPantry, pantryRecipes, loadingPantryRecipes, generatePantryRecipes, onRecipeSelect, pantryRecipeMessage }) => {
   const [item, setItem] = useState('');
+
+  const handleAddItem = () => {
+    if (!item.trim()) return;
+    addPantry(item.trim());
+    setItem('');
+  };
+
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-bold text-gray-900">Pantry inventory</h2>
       <div className="bg-white border border-gray-100 rounded-2xl p-4">
         <div className="flex gap-2">
           <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Add item (e.g., tomatoes)" className="flex-1 rounded-xl border border-gray-200 px-3 py-2" />
-          <button onClick={() => { if (item.trim()) { addPantry(item.trim()); setItem(''); }}} className="rounded-xl bg-emerald-500 text-white px-4 inline-flex items-center gap-1"><Plus className="w-4 h-4" /> Add</button>
+          <button onClick={handleAddItem} className="rounded-xl bg-emerald-500 text-white px-4 inline-flex items-center gap-1"><Plus className="w-4 h-4" /> Add</button>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {pantry.length === 0 && <p className="text-sm text-gray-500">No pantry items yet.</p>}
           {pantry.map((p) => <span key={p} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm">{p}</span>)}
         </div>
+
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <button
+            onClick={generatePantryRecipes}
+            disabled={loadingPantryRecipes || pantry.length === 0}
+            className="rounded-xl bg-gray-900 text-white px-4 py-2.5 inline-flex items-center gap-2 font-semibold disabled:opacity-50"
+          >
+            <Search className="w-4 h-4" />
+            {loadingPantryRecipes ? 'Generating recipes...' : 'Generate recipes from pantry'}
+          </button>
+          {pantryRecipeMessage && <p className="text-sm text-gray-500 mt-3">{pantryRecipeMessage}</p>}
+        </div>
       </div>
+
+      {pantryRecipes.length > 0 && (
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 mb-3">Pantry recipe suggestions</h3>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {pantryRecipes.map((recipe) => (
+              <RecipeCard key={recipe.id} recipe={recipe} onClick={() => onRecipeSelect(recipe)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pantryRecipeMessage === 'No recipes found for your current pantry ingredients. Try adding more variety.' && (
+        <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500 bg-white">
+          {pantryRecipeMessage}
+        </div>
+      )}
     </section>
   );
 };
@@ -335,6 +371,9 @@ export default function App() {
   const [heroInput, setHeroInput] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [pantryRecipes, setPantryRecipes] = useState([]);
+  const [loadingPantryRecipes, setLoadingPantryRecipes] = useState(false);
+  const [pantryRecipeMessage, setPantryRecipeMessage] = useState('');
 
   const [pantry, setPantry] = useState([]);
   const [mealPlan, setMealPlan] = useState({});
@@ -377,6 +416,26 @@ export default function App() {
   const addPantry = (item) => {
     if (pantry.some((value) => value.toLowerCase() === item.toLowerCase())) return;
     setPantry((prev) => [...prev, item]);
+  };
+
+  const generatePantryRecipes = async () => {
+    if (pantry.length === 0) {
+      setPantryRecipes([]);
+      setPantryRecipeMessage('Add pantry ingredients first to generate recipes.');
+      return;
+    }
+
+    setLoadingPantryRecipes(true);
+    setPantryRecipeMessage('');
+
+    const results = await recipeApi.searchRecipesByIngredients(pantry);
+    setPantryRecipes(results);
+
+    if (results.length === 0) {
+      setPantryRecipeMessage('No recipes found for your current pantry ingredients. Try adding more variety.');
+    }
+
+    setLoadingPantryRecipes(false);
   };
 
   const saveMeal = (day, value) => {
@@ -463,7 +522,17 @@ export default function App() {
           </>
         )}
 
-        {activeView === 'pantry' && <PantryView pantry={pantry} addPantry={addPantry} />}
+        {activeView === 'pantry' && (
+          <PantryView
+            pantry={pantry}
+            addPantry={addPantry}
+            pantryRecipes={pantryRecipes}
+            loadingPantryRecipes={loadingPantryRecipes}
+            generatePantryRecipes={generatePantryRecipes}
+            pantryRecipeMessage={pantryRecipeMessage}
+            onRecipeSelect={setSelectedRecipe}
+          />
+        )}
         {activeView === 'planner' && <PlannerView mealPlan={mealPlan} saveMeal={saveMeal} />}
         {activeView === 'nutrition' && <NutritionView nutrition={nutrition} setNutrition={setNutrition} />}
       </main>

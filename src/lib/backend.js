@@ -46,6 +46,26 @@ export const recipeApi = {
     }
   },
 
+  async searchRecipesByIngredients(ingredients = []) {
+    const cleaned = ingredients
+      .map((item) => item?.trim())
+      .filter(Boolean)
+      .join(',');
+
+    if (!API_KEY || !cleaned) return [];
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/recipes/findByIngredients?ingredients=${encodeURIComponent(cleaned)}&number=12&ranking=2&ignorePantry=true&apiKey=${API_KEY}`
+      );
+      if (!response.ok) throw new Error('API Error');
+      return await response.json();
+    } catch (error) {
+      console.error('Ingredient Search Error:', error);
+      return [];
+    }
+  },
+
   async getRecipeDetails(id) {
     if (!API_KEY) return null;
     try {
