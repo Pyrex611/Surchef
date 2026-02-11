@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SurChef - Login</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👨‍🍳</text></svg>" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981',
+                        secondary: '#14b8a6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glossy-btn {
+            background: linear-gradient(145deg, #10b981, #059669);
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .glossy-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .glossy-btn:hover::before {
+            left: 100%;
+        }
+        
+        .glossy-btn:hover {
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .glossy-btn:active {
+            transform: translateY(0);
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+        
+        .animated-bg {
+            background: linear-gradient(-45deg, #10b981, #14b8a6, #059669, #0d9488);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .input-focus:focus {
+            border-color: #10b981;
+            ring-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeInUp 0.6s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen animated-bg flex flex-col">
+    <!-- Header -->
+    <header class="bg-white bg-opacity-10 backdrop-blur-md text-white sticky top-0 z-50 shadow-lg border-b border-white border-opacity-20">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="text-4xl">👨‍🍳</div>
+                <h1 class="text-2xl font-bold tracking-tight">SurChef</h1>
+            </div>
+            <nav class="hidden md:flex space-x-6">
+                <a href="index.html" class="hover:text-yellow-300 transition font-semibold">Home</a>
+                <a href="signup.html" class="hover:text-yellow-300 transition font-semibold">Sign Up</a>
+            </nav>
+            <button id="mobileMenuBtn" class="md:hidden text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-8 max-w-md w-full shadow-2xl fade-in">
+            <div class="text-center mb-8">
+                <div class="text-6xl mb-4">👨‍🍳</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h2>
+                <p class="text-gray-600">Sign in to access your personal SurChef</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label for="username" class="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required
+                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus outline-none transition"
+                        placeholder="Enter your username"
+                    />
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required
+                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus outline-none transition"
+                        placeholder="Enter your password"
+                    />
+                </div>
+                
+                <div class="flex items-center justify-between text-sm">
+                    <label class="flex items-center">
+                        <input type="checkbox" class="mr-2 rounded">
+                        <span class="text-gray-600">Remember me</span>
+                    </label>
+                    <a href="#" class="text-primary hover:text-primary-dark font-semibold">Forgot Password?</a>
+                </div>
+                
+                <button 
+                    type="submit" 
+                    class="w-full glossy-btn py-3 px-4 rounded-xl text-white font-bold text-lg flex items-center justify-center space-x-2"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                    </svg>
+                    <span>Sign In</span>
+                </button>
+                
+                <div id="loginError" class="text-red-600 text-sm text-center font-semibold hidden bg-red-50 py-3 px-4 rounded-xl border border-red-200">
+                    ⚠️ Invalid username or password. Please try again.
+                </div>
+                
+                <div class="text-center pt-4 border-t border-gray-200">
+                    <p class="text-gray-600">
+                        Don't have an account? 
+                        <a href="signup.html" class="text-primary hover:text-primary-dark font-bold">Sign Up</a>
+                    </p>
+                </div>
+            </form>
+            
+            <div class="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <p class="text-xs text-blue-800 font-semibold mb-1">🔑 Demo Credentials:</p>
+                <p class="text-xs text-blue-700">Username: <strong>Pyrex</strong> | Password: <strong>Pyrex123</strong></p>
+                <p class="text-xs text-blue-700">Username: <strong>others</strong> | Password: <strong>others123</strong></p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white bg-opacity-10 backdrop-blur-md text-white py-6 text-center text-sm border-t border-white border-opacity-20">
+        <p class="font-semibold">&copy; 2026 SurChef. All rights reserved.</p>
+        <p class="text-xs text-gray-200 mt-1">Made with ❤️ for food lovers everywhere</p>
+    </footer>
+
+    <script>
+        // Authentication Logic
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            // Hide previous errors
+            errorDiv.classList.add('hidden');
+            
+            // Validate credentials
+            const validUsers = {
+                'Pyrex': { password: 'Pyrex123', role: 'admin' },
+                'others': { password: 'others123', role: 'user' }
+            };
+            
+            if (validUsers[username] && validUsers[username].password === password) {
+                // Store user in localStorage
+                localStorage.setItem('currentUser', JSON.stringify({
+                    username: username,
+                    role: validUsers[username].role,
+                    loginTime: new Date().toISOString()
+                }));
+                
+                // Show success feedback
+                const button = this.querySelector('button[type="submit"]');
+                button.innerHTML = '<svg class="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="ml-2">Signing in...</span>';
+                
+                // Redirect after short delay
+                setTimeout(() => {
+                    window.location.href = 'app.html';
+                }, 1000);
+            } else {
+                // Show error
+                errorDiv.classList.remove('hidden');
+                errorDiv.style.animation = 'none';
+                setTimeout(() => {
+                    errorDiv.style.animation = 'fadeInUp 0.3s ease-out';
+                }, 10);
+            }
+        });
+        
+        // Mobile menu toggle
+        document.getElementById('mobileMenuBtn')?.addEventListener('click', function() {
+            const nav = this.parentElement.querySelector('nav');
+            nav.classList.toggle('hidden');
+        });
+        
+        // Check if already logged in
+        const currentUser = localStorage.getItem('currentUser');
+        if (currentUser) {
+            const user = JSON.parse(currentUser);
+            const loginTime = new Date(user.loginTime);
+            const now = new Date();
+            const hoursSinceLogin = (now - loginTime) / (1000 * 60 * 60);
+            
+            // Auto-login if session is less than 24 hours old
+            if (hoursSinceLogin < 24) {
+                window.location.href = 'app.html';
+            }
+        }
+    </script>
+</body>
+</html>

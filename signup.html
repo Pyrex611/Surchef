@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SurChef - Sign Up</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👨‍🍳</text></svg>" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981',
+                        secondary: '#14b8a6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glossy-btn {
+            background: linear-gradient(145deg, #10b981, #059669);
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .glossy-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .glossy-btn:hover::before {
+            left: 100%;
+        }
+        
+        .glossy-btn:hover {
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+        
+        .animated-bg {
+            background: linear-gradient(-45deg, #10b981, #14b8a6, #059669, #0d9488);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .input-focus:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeInUp 0.6s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen animated-bg flex flex-col">
+    <!-- Header -->
+    <header class="bg-white bg-opacity-10 backdrop-blur-md text-white sticky top-0 z-50 shadow-lg border-b border-white border-opacity-20">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="text-4xl">👨‍🍳</div>
+                <h1 class="text-2xl font-bold tracking-tight">SurChef</h1>
+            </div>
+            <nav class="hidden md:flex space-x-6">
+                <a href="index.html" class="hover:text-yellow-300 transition font-semibold">Home</a>
+                <a href="login.html" class="hover:text-yellow-300 transition font-semibold">Log In</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-8 max-w-md w-full shadow-2xl fade-in">
+            <div class="text-center mb-8">
+                <div class="text-6xl mb-4">👨‍🍳</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Join SurChef</h2>
+                <p class="text-gray-600">Create your account and start cooking!</p>
+            </div>
+            
+            <form id="signupForm" class="space-y-5">
+                <div>
+                    <label for="fullname" class="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                    <input 
+                        type="text" 
+                        id="fullname" 
+                        name="fullname" 
+                        required
+                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus outline-none transition"
+                        placeholder="John Doe"
+                    />
+                </div>
+                
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        required
+                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus outline-none transition"
+                        placeholder="your@email.com"
+                    />
+                </div>
+                
+                <div>
+                    <label for="username" class="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required
+                        minlength="4"
+                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus outline-none transition"
+                        placeholder="Choose a username"
+                    />
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required
+                        minlength="6"
+                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus outline-none transition"
+                        placeholder="Create a strong password"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                </div>
+                
+                <div>
+                    <label for="confirmPassword" class="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                    <input 
+                        type="password" 
+                        id="confirmPassword" 
+                        name="confirmPassword" 
+                        required
+                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus outline-none transition"
+                        placeholder="Confirm your password"
+                    />
+                </div>
+                
+                <div class="flex items-start">
+                    <input type="checkbox" id="terms" required class="mt-1 mr-2 rounded">
+                    <label for="terms" class="text-sm text-gray-600">
+                        I agree to the <a href="#" class="text-primary hover:text-primary-dark font-semibold">Terms of Service</a> 
+                        and <a href="#" class="text-primary hover:text-primary-dark font-semibold">Privacy Policy</a>
+                    </label>
+                </div>
+                
+                <button 
+                    type="submit" 
+                    class="w-full glossy-btn py-3 px-4 rounded-xl text-white font-bold text-lg flex items-center justify-center space-x-2"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    <span>Create Account</span>
+                </button>
+                
+                <div id="signupError" class="text-red-600 text-sm text-center font-semibold hidden bg-red-50 py-3 px-4 rounded-xl border border-red-200"></div>
+                
+                <div id="signupSuccess" class="text-green-600 text-sm text-center font-semibold hidden bg-green-50 py-3 px-4 rounded-xl border border-green-200">
+                    ✓ Account created successfully! Redirecting to login...
+                </div>
+                
+                <div class="text-center pt-4 border-t border-gray-200">
+                    <p class="text-gray-600">
+                        Already have an account? 
+                        <a href="login.html" class="text-primary hover:text-primary-dark font-bold">Log In</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer class="bg-white bg-opacity-10 backdrop-blur-md text-white py-6 text-center text-sm border-t border-white border-opacity-20">
+        <p class="font-semibold">&copy; 2026 SurChef. All rights reserved.</p>
+        <p class="text-xs text-gray-200 mt-1">Made with ❤️ for food lovers everywhere</p>
+    </footer>
+
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fullname = document.getElementById('fullname').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('signupError');
+            const successDiv = document.getElementById('signupSuccess');
+            
+            // Hide previous messages
+            errorDiv.classList.add('hidden');
+            successDiv.classList.add('hidden');
+            
+            // Validation
+            if (password !== confirmPassword) {
+                errorDiv.textContent = '⚠️ Passwords do not match!';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            if (password.length < 6) {
+                errorDiv.textContent = '⚠️ Password must be at least 6 characters!';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            if (username.length < 4) {
+                errorDiv.textContent = '⚠️ Username must be at least 4 characters!';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            // Check if username already exists (mock check)
+            const existingUsers = JSON.parse(localStorage.getItem('users') || '[]');
+            if (existingUsers.some(u => u.username === username)) {
+                errorDiv.textContent = '⚠️ Username already taken!';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            // Store user (in real app, this would be API call)
+            const newUser = {
+                fullname,
+                email,
+                username,
+                password, // In production, NEVER store plain passwords!
+                role: 'user',
+                createdAt: new Date().toISOString()
+            };
+            
+            existingUsers.push(newUser);
+            localStorage.setItem('users', JSON.stringify(existingUsers));
+            
+            // Show success
+            successDiv.classList.remove('hidden');
+            
+            // Redirect after delay
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 1500);
+        });
+        
+        // Real-time password match validation
+        document.getElementById('confirmPassword').addEventListener('input', function() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = this.value;
+            
+            if (confirmPassword && password !== confirmPassword) {
+                this.style.borderColor = '#ef4444';
+            } else {
+                this.style.borderColor = '#10b981';
+            }
+        });
+    </script>
+</body>
+</html>
